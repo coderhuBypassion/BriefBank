@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Clerk } from 'clerk';
+import Clerk from '@clerk/clerk-sdk-node';
 
 // Initialize Clerk with the secret key
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || '';
