@@ -65,6 +65,7 @@ export class MongoDBStorage {
 
   async createUser(userData) {
     try {
+      await this.ensureConnected();
       const user = new User(userData);
       await user.save();
       return user.toObject();
@@ -76,6 +77,7 @@ export class MongoDBStorage {
 
   async updateUser(clerkId, data) {
     try {
+      await this.ensureConnected();
       const user = await User.findOneAndUpdate(
         { clerkId },
         { $set: data },
@@ -90,6 +92,7 @@ export class MongoDBStorage {
 
   async incrementUsedSummaries(clerkId) {
     try {
+      await this.ensureConnected();
       const user = await User.findOneAndUpdate(
         { clerkId },
         { $inc: { usedSummaries: 1 } },
@@ -104,6 +107,7 @@ export class MongoDBStorage {
 
   async upgradeUserToPro(clerkId) {
     try {
+      await this.ensureConnected();
       const user = await User.findOneAndUpdate(
         { clerkId },
         { $set: { isPro: true } },
@@ -119,17 +123,20 @@ export class MongoDBStorage {
   // Deck operations
   async getDeck(id) {
     try {
-      // Handle both string ObjectId and numeric id
-      let deck;
+      await this.ensureConnected();
       
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        // If it's a valid ObjectId, use it directly
-        deck = await Deck.findById(id);
-      } else if (typeof id === 'number' || !isNaN(parseInt(id))) {
-        // For numeric IDs from the legacy system, find by the numeric ID field
-        // This assumes we've added a numericId field during data migration
+      // Handle both string ObjectId and numeric id
+      let deck = null;
+      
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof id === 'number' || !isNaN(parseInt(id))) {
         const numId = typeof id === 'number' ? id : parseInt(id);
         deck = await Deck.findOne({ id: numId });
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(id)) {
+        deck = await Deck.findById(id);
       }
       
       return deck ? deck.toObject() : undefined;
@@ -225,20 +232,24 @@ export class MongoDBStorage {
 
   async updateDeckSummary(id, summary) {
     try {
-      let deck;
+      await this.ensureConnected();
       
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        // If it's a valid ObjectId, use it directly
-        deck = await Deck.findByIdAndUpdate(
-          id,
-          { $set: { aiSummary: summary } },
-          { new: true }
-        );
-      } else if (typeof id === 'number' || !isNaN(parseInt(id))) {
-        // For numeric IDs from the legacy system
+      let deck = null;
+      
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof id === 'number' || !isNaN(parseInt(id))) {
         const numId = typeof id === 'number' ? id : parseInt(id);
         deck = await Deck.findOneAndUpdate(
           { id: numId },
+          { $set: { aiSummary: summary } },
+          { new: true }
+        );
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(id)) {
+        deck = await Deck.findByIdAndUpdate(
+          id,
           { $set: { aiSummary: summary } },
           { new: true }
         );
@@ -254,6 +265,8 @@ export class MongoDBStorage {
   // Saved decks operations
   async getSavedDecks(userId) {
     try {
+      await this.ensureConnected();
+      
       const savedDecks = await SavedDeck.find({ userId })
         .populate('deckId')
         .exec();
@@ -269,17 +282,21 @@ export class MongoDBStorage {
 
   async saveDeck(savedDeckData) {
     try {
+      await this.ensureConnected();
+      
       // Convert numeric deckId to either ObjectId or numericId
       const deckId = savedDeckData.deckId;
-      let deck;
+      let deck = null;
       
-      if (mongoose.Types.ObjectId.isValid(deckId)) {
-        // If it's already a valid ObjectId, use it directly
-        deck = await Deck.findById(deckId);
-      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
-        // For numeric IDs from the legacy system, find by the numeric ID field
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
         const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
         deck = await Deck.findOne({ id: numId });
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(deckId)) {
+        deck = await Deck.findById(deckId);
       }
       
       if (!deck) {
@@ -361,6 +378,8 @@ export class MongoDBStorage {
   // View history operations
   async getRecentViews(userId, limit = 5) {
     try {
+      await this.ensureConnected();
+      
       const recentViews = await View.find({ userId })
         .sort('-createdAt')
         .limit(limit)
@@ -378,16 +397,20 @@ export class MongoDBStorage {
 
   async recordView(viewData) {
     try {
-      const deckId = viewData.deckId;
-      let deck;
+      await this.ensureConnected();
       
-      if (mongoose.Types.ObjectId.isValid(deckId)) {
-        // If it's already a valid ObjectId, use it directly
-        deck = await Deck.findById(deckId);
-      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
-        // For numeric IDs from the legacy system, find by the numeric ID field
+      const deckId = viewData.deckId;
+      let deck = null;
+      
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
         const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
         deck = await Deck.findOne({ id: numId });
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(deckId)) {
+        deck = await Deck.findById(deckId);
       }
       
       if (!deck) {
@@ -424,6 +447,7 @@ export class MongoDBStorage {
 
   async getViewCount(userId) {
     try {
+      await this.ensureConnected();
       const count = await View.countDocuments({ userId });
       return count;
     } catch (error) {
@@ -435,6 +459,7 @@ export class MongoDBStorage {
   // Payment operations
   async createPayment(paymentData) {
     try {
+      await this.ensureConnected();
       const payment = new Payment(paymentData);
       await payment.save();
       return payment.toObject();
@@ -446,6 +471,7 @@ export class MongoDBStorage {
 
   async updatePaymentStatus(orderId, paymentId, status) {
     try {
+      await this.ensureConnected();
       const payment = await Payment.findOneAndUpdate(
         { razorpayOrderId: orderId },
         { 
@@ -465,6 +491,7 @@ export class MongoDBStorage {
 
   async getPayment(orderId) {
     try {
+      await this.ensureConnected();
       const payment = await Payment.findOne({ razorpayOrderId: orderId });
       return payment ? payment.toObject() : undefined;
     } catch (error) {
