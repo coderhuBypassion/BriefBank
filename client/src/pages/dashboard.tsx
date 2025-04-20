@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/clerk";
 import { DeckFilters, Deck, UsageStatsType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookmarkIcon, ClockIcon, SparklesIcon, ZapIcon } from "lucide-react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -88,10 +88,10 @@ export default function Dashboard() {
   
   const renderPagination = () => {
     return (
-      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-0">
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between mt-8 mb-4">
+        <div className="flex-1 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-600">
               Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
               <span className="font-medium">
                 {Math.min(currentPage * itemsPerPage, decks?.length || 0)}
@@ -100,42 +100,112 @@ export default function Dashboard() {
             </p>
           </div>
           <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            <nav className="flex items-center space-x-1" aria-label="Pagination">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                className="h-9 w-9 p-0 rounded-lg"
               >
                 <span className="sr-only">Previous</span>
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              {/* Page numbers */}
-              {[...Array(totalPages).keys()].map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page + 1 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(page + 1)}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                    currentPage === page + 1
-                      ? "z-10 bg-primary border-primary text-white"
-                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                  }`}
-                >
-                  {page + 1}
-                </Button>
-              ))}
+              
+              {/* Page numbers - mobile optimized */}
+              {totalPages <= 5 ? (
+                // Show all pages if 5 or fewer
+                [...Array(totalPages).keys()].map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page + 1 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page + 1)}
+                    className={`h-9 w-9 p-0 rounded-lg ${
+                      currentPage === page + 1
+                        ? "bg-primary border-primary text-white"
+                        : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page + 1}
+                  </Button>
+                ))
+              ) : (
+                // Show limited pages with ellipsis for 6+ pages
+                <>
+                  {/* First page */}
+                  <Button
+                    variant={currentPage === 1 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    className={`h-9 w-9 p-0 rounded-lg ${
+                      currentPage === 1
+                        ? "bg-primary border-primary text-white"
+                        : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    1
+                  </Button>
+                  
+                  {/* Ellipsis or second page */}
+                  {currentPage > 3 && (
+                    <span className="px-2 text-gray-500">...</span>
+                  )}
+                  
+                  {/* Current page range */}
+                  {[...Array(totalPages).keys()]
+                    .filter(page => {
+                      const pageNum = page + 1;
+                      if (pageNum === 1 || pageNum === totalPages) return false;
+                      return Math.abs(currentPage - pageNum) < 2;
+                    })
+                    .map(page => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page + 1 ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page + 1)}
+                        className={`h-9 w-9 p-0 rounded-lg ${
+                          currentPage === page + 1
+                            ? "bg-primary border-primary text-white"
+                            : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page + 1}
+                      </Button>
+                    ))
+                  }
+                  
+                  {/* Ellipsis or second-to-last page */}
+                  {currentPage < totalPages - 2 && (
+                    <span className="px-2 text-gray-500">...</span>
+                  )}
+                  
+                  {/* Last page */}
+                  <Button
+                    variant={currentPage === totalPages ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    className={`h-9 w-9 p-0 rounded-lg ${
+                      currentPage === totalPages
+                        ? "bg-primary border-primary text-white"
+                        : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {totalPages}
+                  </Button>
+                </>
+              )}
+              
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                className="h-9 w-9 p-0 rounded-lg"
               >
                 <span className="sr-only">Next</span>
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </nav>
           </div>
@@ -145,41 +215,99 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <main className="flex-1 bg-gray-50">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="flex-1 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Usage stats */}
-          <div className="px-4 sm:px-0 mb-6">
+          <div className="mb-10">
             <UsageStats stats={usageStats} onUpgradeClick={handleUpgradeClick} />
           </div>
           
-          {/* Pitch Deck Library */}
-          <div className="px-4 sm:px-0">
-            <div className="sm:flex sm:items-center mb-5">
-              <div className="sm:flex-auto">
-                <h1 className="text-xl font-semibold text-gray-900">Pitch Deck Library</h1>
-                <p className="mt-2 text-sm text-gray-700">Browse through our collection of curated pitch decks from successful startups.</p>
+          {/* Quick stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-blue-50 text-primary">
+                  <ZapIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 font-medium">AI Summaries Used</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {user?.isPro ? 'Unlimited' : `${usageStats.usedSummaries}/${usageStats.summaryLimit}`}
+                  </div>
+                </div>
               </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+                  <ClockIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 font-medium">Viewed Decks</div>
+                  <div className="text-2xl font-bold text-gray-900">{usageStats.viewedDecks}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
+                  <BookmarkIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 font-medium">Saved Decks</div>
+                  <div className="text-2xl font-bold text-gray-900">{usageStats.savedDecks}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Pitch Deck Library */}
+          <div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Pitch Deck Library</h1>
+                <p className="mt-1 text-gray-600">Browse through our collection of curated pitch decks from successful startups.</p>
+              </div>
+              
+              {!user?.isPro && (
+                <Button 
+                  onClick={handleUpgradeClick}
+                  className="bg-gradient-to-r from-primary to-indigo-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  Upgrade to Pro
+                </Button>
+              )}
             </div>
             
             {/* Filters */}
             <FilterBar filters={filters} onFilterChange={handleFilterChange} />
             
             {/* Deck Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-6">
               {isLoadingDecks ? (
                 // Loading state
                 Array(6).fill(0).map((_, index) => (
-                  <div key={index} className="bg-white rounded-xl shadow-md border border-gray-100 p-6 animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 rounded"></div>
-                      <div className="h-4 bg-gray-200 rounded"></div>
+                  <div key={index} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-pulse">
+                    <div className="h-1.5 bg-gray-200 rounded-full w-full mb-4"></div>
+                    <div className="flex justify-between mb-4">
+                      <div className="h-5 bg-gray-200 rounded-full w-1/3"></div>
+                      <div className="h-5 bg-gray-200 rounded-full w-1/4"></div>
                     </div>
-                    <div className="h-8 bg-gray-200 rounded w-1/3 mt-4"></div>
+                    <div className="h-6 bg-gray-200 rounded-full w-3/4 mb-3"></div>
+                    <div className="space-y-2 mb-5">
+                      <div className="h-4 bg-gray-200 rounded-full"></div>
+                      <div className="h-4 bg-gray-200 rounded-full w-5/6"></div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="h-8 bg-gray-200 rounded-full w-1/3"></div>
+                      <div className="h-4 bg-gray-200 rounded-full w-1/6"></div>
+                    </div>
                   </div>
                 ))
               ) : decks?.length ? (
@@ -193,8 +321,14 @@ export default function Dashboard() {
                   />
                 ))
               ) : (
-                <div className="col-span-3 text-center py-8">
-                  <p className="text-gray-500">No decks found matching your criteria. Try adjusting your filters.</p>
+                <div className="col-span-3 bg-white rounded-2xl shadow-sm p-8 text-center border border-gray-100">
+                  <div className="inline-flex items-center justify-center p-3 rounded-xl bg-gray-100 mb-4">
+                    <svg className="h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 16h.01M5.2 19.8l1.8-1.8m12 0l1.8 1.8m-15.6-15.6l1.8 1.8m12 0l1.8-1.8M12 2v2m0 16v2" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No decks found</h3>
+                  <p className="text-gray-500">Try adjusting your filters or check back later for new content.</p>
                 </div>
               )}
             </div>
