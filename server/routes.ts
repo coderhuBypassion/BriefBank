@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./mongodb-storage";
 import { requireAuth, getAuthUser } from "./lib/clerk";
 import { openAIService } from "./lib/openai";
 import { pdfService } from "./lib/pdf";

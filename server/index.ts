@@ -2,6 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+// Set MongoDB connection string
+process.env.MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://rahulkottak:rahulkottak@cluster0.kvbbssx.mongodb.net/BriefBank";
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

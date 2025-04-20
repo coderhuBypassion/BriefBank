@@ -1,5 +1,6 @@
 import connectToDatabase from './db.js';
 import { User, Deck, SavedDeck, View, Payment } from './models/index.js';
+import mongoose from 'mongoose';
 
 export class MongoDBStorage {
   constructor() {
@@ -93,7 +94,19 @@ export class MongoDBStorage {
   // Deck operations
   async getDeck(id) {
     try {
-      const deck = await Deck.findById(id);
+      // Handle both string ObjectId and numeric id
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        // If it's a valid ObjectId, use it directly
+        deck = await Deck.findById(id);
+      } else if (typeof id === 'number' || !isNaN(parseInt(id))) {
+        // For numeric IDs from the legacy system, find by the numeric ID field
+        // This assumes we've added a numericId field during data migration
+        const numId = typeof id === 'number' ? id : parseInt(id);
+        deck = await Deck.findOne({ id: numId });
+      }
+      
       return deck ? deck.toObject() : undefined;
     } catch (error) {
       console.error('Error getting deck:', error);
@@ -180,11 +193,25 @@ export class MongoDBStorage {
 
   async updateDeckSummary(id, summary) {
     try {
-      const deck = await Deck.findByIdAndUpdate(
-        id,
-        { $set: { aiSummary: summary } },
-        { new: true }
-      );
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        // If it's a valid ObjectId, use it directly
+        deck = await Deck.findByIdAndUpdate(
+          id,
+          { $set: { aiSummary: summary } },
+          { new: true }
+        );
+      } else if (typeof id === 'number' || !isNaN(parseInt(id))) {
+        // For numeric IDs from the legacy system
+        const numId = typeof id === 'number' ? id : parseInt(id);
+        deck = await Deck.findOneAndUpdate(
+          { id: numId },
+          { $set: { aiSummary: summary } },
+          { new: true }
+        );
+      }
+      
       return deck ? deck.toObject() : undefined;
     } catch (error) {
       console.error('Error updating deck summary:', error);
@@ -210,7 +237,29 @@ export class MongoDBStorage {
 
   async saveDeck(savedDeckData) {
     try {
-      const savedDeck = new SavedDeck(savedDeckData);
+      // Convert numeric deckId to either ObjectId or numericId
+      const deckId = savedDeckData.deckId;
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(deckId)) {
+        // If it's already a valid ObjectId, use it directly
+        deck = await Deck.findById(deckId);
+      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
+        // For numeric IDs from the legacy system, find by the numeric ID field
+        const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
+        deck = await Deck.findOne({ id: numId });
+      }
+      
+      if (!deck) {
+        throw new Error(`Deck not found with ID ${deckId}`);
+      }
+      
+      // Use the MongoDB ObjectId for deckId
+      const savedDeck = new SavedDeck({
+        userId: savedDeckData.userId,
+        deckId: deck._id
+      });
+      
       await savedDeck.save();
       return savedDeck.toObject();
     } catch (error) {
@@ -221,7 +270,26 @@ export class MongoDBStorage {
 
   async removeSavedDeck(userId, deckId) {
     try {
-      const result = await SavedDeck.deleteOne({ userId, deckId });
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(deckId)) {
+        // If it's already a valid ObjectId, use it directly
+        deck = await Deck.findById(deckId);
+      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
+        // For numeric IDs from the legacy system, find by the numeric ID field
+        const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
+        deck = await Deck.findOne({ id: numId });
+      }
+      
+      if (!deck) {
+        return false;
+      }
+      
+      const result = await SavedDeck.deleteOne({ 
+        userId, 
+        deckId: deck._id 
+      });
+      
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error removing saved deck:', error);
@@ -231,7 +299,26 @@ export class MongoDBStorage {
 
   async isSavedDeck(userId, deckId) {
     try {
-      const savedDeck = await SavedDeck.findOne({ userId, deckId });
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(deckId)) {
+        // If it's already a valid ObjectId, use it directly
+        deck = await Deck.findById(deckId);
+      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
+        // For numeric IDs from the legacy system, find by the numeric ID field
+        const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
+        deck = await Deck.findOne({ id: numId });
+      }
+      
+      if (!deck) {
+        return false;
+      }
+      
+      const savedDeck = await SavedDeck.findOne({ 
+        userId, 
+        deckId: deck._id 
+      });
+      
       return !!savedDeck;
     } catch (error) {
       console.error('Error checking if deck is saved:', error);
@@ -259,13 +346,29 @@ export class MongoDBStorage {
 
   async recordView(viewData) {
     try {
+      const deckId = viewData.deckId;
+      let deck;
+      
+      if (mongoose.Types.ObjectId.isValid(deckId)) {
+        // If it's already a valid ObjectId, use it directly
+        deck = await Deck.findById(deckId);
+      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
+        // For numeric IDs from the legacy system, find by the numeric ID field
+        const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
+        deck = await Deck.findOne({ id: numId });
+      }
+      
+      if (!deck) {
+        throw new Error(`Deck not found with ID ${deckId}`);
+      }
+      
       // Check if this view already exists and is recent (last 1 hour)
       const lastHour = new Date();
       lastHour.setHours(lastHour.getHours() - 1);
       
       const existingView = await View.findOne({
         userId: viewData.userId,
-        deckId: viewData.deckId,
+        deckId: deck._id,
         createdAt: { $gt: lastHour }
       });
       
@@ -273,7 +376,12 @@ export class MongoDBStorage {
         return existingView.toObject();
       }
       
-      const view = new View(viewData);
+      // Create the view with the MongoDB ObjectId
+      const view = new View({
+        userId: viewData.userId,
+        deckId: deck._id
+      });
+      
       await view.save();
       return view.toObject();
     } catch (error) {
