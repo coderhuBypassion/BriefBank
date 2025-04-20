@@ -5,6 +5,7 @@ import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import AuthModal from "@/components/auth-modal";
 import DeckCard from "@/components/deck-card";
+import SampleSummaryCard from "@/components/sample-summary-card";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/clerk";
 import { Deck } from "@/lib/types";
@@ -185,11 +186,10 @@ export default function Home() {
               ))
             ) : featuredDecks?.length ? (
               featuredDecks.map((deck) => (
-                <DeckCard
+                <SampleSummaryCard
                   key={deck.id}
                   deck={deck}
-                  showSaveButton={false}
-                  onViewPremium={openAuthModal}
+                  onOpenAuthModal={openAuthModal}
                 />
               ))
             ) : (
