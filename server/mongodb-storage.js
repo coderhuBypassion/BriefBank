@@ -319,15 +319,19 @@ export class MongoDBStorage {
 
   async removeSavedDeck(userId, deckId) {
     try {
-      let deck;
+      await this.ensureConnected();
       
-      if (mongoose.Types.ObjectId.isValid(deckId)) {
-        // If it's already a valid ObjectId, use it directly
-        deck = await Deck.findById(deckId);
-      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
-        // For numeric IDs from the legacy system, find by the numeric ID field
+      let deck = null;
+      
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
         const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
         deck = await Deck.findOne({ id: numId });
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(deckId)) {
+        deck = await Deck.findById(deckId);
       }
       
       if (!deck) {
@@ -348,15 +352,19 @@ export class MongoDBStorage {
 
   async isSavedDeck(userId, deckId) {
     try {
-      let deck;
+      await this.ensureConnected();
       
-      if (mongoose.Types.ObjectId.isValid(deckId)) {
-        // If it's already a valid ObjectId, use it directly
-        deck = await Deck.findById(deckId);
-      } else if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
-        // For numeric IDs from the legacy system, find by the numeric ID field
+      let deck = null;
+      
+      // First try to find by the numeric ID field which matches legacy IDs
+      if (typeof deckId === 'number' || !isNaN(parseInt(deckId))) {
         const numId = typeof deckId === 'number' ? deckId : parseInt(deckId);
         deck = await Deck.findOne({ id: numId });
+      }
+      
+      // If not found and it's a valid ObjectId, try finding by _id
+      if (!deck && mongoose.Types.ObjectId.isValid(deckId)) {
+        deck = await Deck.findById(deckId);
       }
       
       if (!deck) {

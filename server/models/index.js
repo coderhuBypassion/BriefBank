@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
 
 // Deck Schema
 const deckSchema = new mongoose.Schema({
+  id: { type: Number, unique: true, sparse: true }, // Legacy numeric ID
   title: { type: String, required: true },
   companyName: { type: String, required: true },
   industry: { type: String, required: true },
