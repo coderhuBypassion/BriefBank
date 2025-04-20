@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { seedDatabase } from "./seed-data";
 
 // Set MongoDB connection string
 process.env.MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://rahulkottak:rahulkottak@cluster0.kvbbssx.mongodb.net/BriefBank";
@@ -40,6 +41,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // If SEED_DATABASE environment variable is set, seed the database
+  if (process.env.SEED_DATABASE === 'true') {
+    log('Seeding database...');
+    try {
+      await seedDatabase();
+      log('Database seeded successfully');
+    } catch (error) {
+      log('Error seeding database: ' + error);
+    }
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

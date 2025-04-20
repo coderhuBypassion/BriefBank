@@ -1,4 +1,4 @@
-import { User, Deck, SavedDeck, View, Payment } from './models/index.js';
+import { User, Deck, SavedDeck, View, Payment } from './models/index';
 import mongoose from 'mongoose';
 
 // Connect to MongoDB using environment variable
@@ -155,7 +155,7 @@ const sampleUsers = [
   }
 ];
 
-async function seedDatabase() {
+export async function seedDatabase() {
   try {
     // Connect to the database
     await connectToDatabase();
@@ -210,13 +210,12 @@ async function seedDatabase() {
     }
 
     console.log("Database seeding completed successfully");
+    return true;
   } catch (error) {
     console.error("Error seeding database:", error);
-  } finally {
-    // Close the MongoDB connection
-    mongoose.connection.close();
+    return false;
   }
 }
 
-// Run the seeding function
-seedDatabase();
+// In ES modules we don't have require.main === module,
+// so we'll export the function instead and call it explicitly from index.ts
