@@ -7,15 +7,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/clerk";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Github } from "lucide-react";
-import {
-  SignIn,
-  SignUp,
-  SignInButton,
-  SignUpButton,
-  useClerk
-} from "@clerk/clerk-react";
 
 interface AuthModalProps {
   open: boolean;
@@ -29,42 +25,57 @@ export default function AuthModal({
   defaultView = "signUp" 
 }: AuthModalProps) {
   const [view, setView] = useState<"signIn" | "signUp">(defaultView);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
-  const { openSignIn, openSignUp } = useClerk();
 
-  const toggleView = () => {
-    setView(view === "signIn" ? "signUp" : "signIn");
-  };
-
-  // Handler for OAuth provider clicks
-  const handleOAuthSignIn = (provider: "google" | "github") => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
+    
     try {
       if (view === "signIn") {
-        // Use Clerk's signIn method with the specified OAuth provider
-        openSignIn({
-          redirectUrl: window.location.href,
-          appearance: {
-            elements: {
-              rootBox: {
-                display: "none" // Hide Clerk's UI since we're using our own
-              }
-            }
-          }
-        });
+        const result = await signIn(email, password);
+        if (result.success) {
+          toast({
+            title: "Welcome back!",
+            description: "You've successfully signed in.",
+          });
+          onOpenChange(false);
+        } else {
+          toast({
+            title: "Sign in failed",
+            description: result.error || "Invalid email or password. Please try again.",
+            variant: "destructive",
+          });
+        }
       } else {
-        // Use Clerk's signUp method with the specified OAuth provider
-        openSignUp({
-          redirectUrl: window.location.href,
-          appearance: {
-            elements: {
-              rootBox: {
-                display: "none" // Hide Clerk's UI since we're using our own
-              }
-            }
-          }
-        });
+        const result = await signUp(email, password);
+        if (result.success) {
+          toast({
+            title: "Account created!",
+            description: "Welcome to BriefBank! You can now explore pitch decks and get AI summaries.",
+          });
+          onOpenChange(false);
+        } else {
+          toast({
+            title: "Sign up failed",
+            description: result.error || "Could not create account. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -72,8 +83,13 @@ export default function AuthModal({
         description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleView = () => {
+    setView(view === "signIn" ? "signUp" : "signIn");
   };
 
   return (
@@ -90,12 +106,43 @@ export default function AuthModal({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 mt-4">
-          {view === "signIn" ? (
-            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" redirectUrl="/" />
-          ) : (
-            <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" redirectUrl="/" />
-          )}
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              required
+            />
+          </div>
+          
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {view === "signIn" ? "Signing in..." : "Signing up..."}
+              </>
+            ) : (
+              view === "signIn" ? "Sign In" : "Sign Up with Email"
+            )}
+          </Button>
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -107,12 +154,7 @@ export default function AuthModal({
           </div>
           
           <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
-              type="button" 
-              disabled={isLoading}
-              onClick={() => handleOAuthSignIn("google")}
-            >
+            <Button variant="outline" type="button" disabled={isLoading}>
               <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                 <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                   <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
@@ -123,12 +165,7 @@ export default function AuthModal({
               </svg>
               Google
             </Button>
-            <Button 
-              variant="outline" 
-              type="button" 
-              disabled={isLoading}
-              onClick={() => handleOAuthSignIn("github")}
-            >
+            <Button variant="outline" type="button" disabled={isLoading}>
               <Github className="h-5 w-5 mr-2" />
               GitHub
             </Button>
@@ -151,7 +188,7 @@ export default function AuthModal({
               </p>
             )}
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
