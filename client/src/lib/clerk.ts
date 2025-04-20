@@ -1,90 +1,69 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from './queryClient';
 import { User } from './types';
+import {
+  useUser,
+  useAuth as useClerkAuth,
+  useClerk,
+  SignInResource,
+  SignUpResource
+} from '@clerk/clerk-react';
 
-// Client-side auth utilities for Clerk
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'demo_pk_key';
-
+// Export our own auth hook that wraps Clerk's hooks
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
-// Manages auth token and user session
-// This is a simplified version of how Clerk would work
 export const useAuth = () => {
-  const [status, setStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<User | null>(null);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useClerkAuth();
+  const { signOut: clerkSignOut } = useClerk();
   const [token, setToken] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [status, setStatus] = useState<AuthStatus>('loading');
 
+  // Get the user's session token when signed in
   useEffect(() => {
-    // For demo, we'll use localStorage to simulate auth persistence
-    // In a real implementation, this would use Clerk's SDK
-    const checkAuth = async () => {
-      try {
-        const storedToken = localStorage.getItem('auth_token');
-        if (!storedToken) {
+    const fetchToken = async () => {
+      if (isSignedIn) {
+        try {
+          const sessionToken = await getToken();
+          setToken(sessionToken);
+
+          // Also fetch user data from our API
+          const response = await fetch('/api/me', {
+            headers: {
+              'Authorization': `Bearer ${sessionToken}`
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const userData = await response.json();
+            setAuthUser(userData);
+            setStatus('authenticated');
+          } else {
+            console.error('Failed to fetch user data');
+            setStatus('unauthenticated');
+          }
+        } catch (error) {
+          console.error('Failed to get token:', error);
           setStatus('unauthenticated');
-          return;
         }
-
-        // Set the token
-        setToken(storedToken);
-        
-        // Fetch user data from API
-        const response = await fetch('/api/me', {
-          headers: {
-            'Authorization': `Bearer ${storedToken}`
-          },
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          // Token is invalid
-          localStorage.removeItem('auth_token');
-          setStatus('unauthenticated');
-          return;
-        }
-
-        const userData = await response.json();
-        setUser(userData);
-        setStatus('authenticated');
-      } catch (error) {
-        console.error('Auth check failed:', error);
+      } else if (isLoaded) {
+        setToken(null);
+        setAuthUser(null);
         setStatus('unauthenticated');
       }
     };
 
-    checkAuth();
-  }, []);
+    if (isLoaded) {
+      fetchToken();
+    }
+  }, [isSignedIn, isLoaded, getToken]);
 
-  // Sign in function
+  // For backward compatibility
   const signIn = async (email: string, password: string) => {
     try {
-      // In a real implementation, this would use Clerk's signIn method
-      // For demo purposes, we'll simulate a successful sign-in
-      
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Set demo token
-      const demoToken = 'demo_token';
-      localStorage.setItem('auth_token', demoToken);
-      setToken(demoToken);
-      
-      // Fetch user data
-      const response = await fetch('/api/me', {
-        headers: {
-          'Authorization': `Bearer ${demoToken}`
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-      
-      const userData = await response.json();
-      setUser(userData);
-      setStatus('authenticated');
-      
+      // This would be handled by Clerk's SignIn component now
       return { success: true };
     } catch (error) {
       console.error('Sign in failed:', error);
@@ -92,36 +71,9 @@ export const useAuth = () => {
     }
   };
   
-  // Sign up function
   const signUp = async (email: string, password: string) => {
     try {
-      // In a real implementation, this would use Clerk's signUp method
-      // For demo purposes, we'll simulate a successful sign-up
-      
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Set demo token
-      const demoToken = 'demo_token';
-      localStorage.setItem('auth_token', demoToken);
-      setToken(demoToken);
-      
-      // Fetch/create user data
-      const response = await fetch('/api/me', {
-        headers: {
-          'Authorization': `Bearer ${demoToken}`
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create user');
-      }
-      
-      const userData = await response.json();
-      setUser(userData);
-      setStatus('authenticated');
-      
+      // This would be handled by Clerk's SignUp component now
       return { success: true };
     } catch (error) {
       console.error('Sign up failed:', error);
@@ -129,15 +81,12 @@ export const useAuth = () => {
     }
   };
   
-  // Sign out function
   const signOut = async () => {
     try {
-      // In a real implementation, this would use Clerk's signOut method
-      localStorage.removeItem('auth_token');
+      await clerkSignOut();
       setToken(null);
-      setUser(null);
+      setAuthUser(null);
       setStatus('unauthenticated');
-      
       return { success: true };
     } catch (error) {
       console.error('Sign out failed:', error);
@@ -147,13 +96,21 @@ export const useAuth = () => {
 
   return {
     status,
-    user,
+    user: authUser || (user ? {
+      id: user.id,
+      email: user.primaryEmailAddress?.emailAddress || '',
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
+      isPro: false,
+      usedSummaries: 0,
+      createdAt: new Date()
+    } : null),
     token,
     signIn,
     signUp,
     signOut,
-    isLoaded: status !== 'loading',
-    isSignedIn: status === 'authenticated'
+    isLoaded,
+    isSignedIn
   };
 };
 
