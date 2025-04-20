@@ -4,22 +4,46 @@ import mongoose from 'mongoose';
 
 export class MongoDBStorage {
   constructor() {
+    // Flag to track connection status
+    this.isConnected = false;
+    this.connectionPromise = null;
+    
     // Initialize connection
     this.initConnection();
   }
 
   async initConnection() {
-    try {
-      await connectToDatabase();
-      console.log('Connected to MongoDB');
-    } catch (error) {
-      console.error('Failed to connect to MongoDB:', error.message);
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+    
+    this.connectionPromise = new Promise(async (resolve) => {
+      try {
+        await connectToDatabase();
+        console.log('Connected to MongoDB');
+        this.isConnected = true;
+        resolve();
+      } catch (error) {
+        console.error('Failed to connect to MongoDB:', error.message);
+        // Reset connection promise so we can try again
+        this.connectionPromise = null;
+      }
+    });
+    
+    return this.connectionPromise;
+  }
+  
+  // Helper method to ensure we're connected before database operations
+  async ensureConnected() {
+    if (!this.isConnected) {
+      await this.initConnection();
     }
   }
 
   // User operations
   async getUser(id) {
     try {
+      await this.ensureConnected();
       const user = await User.findById(id);
       return user ? user.toObject() : undefined;
     } catch (error) {
@@ -30,6 +54,7 @@ export class MongoDBStorage {
 
   async getUserByClerkId(clerkId) {
     try {
+      await this.ensureConnected();
       const user = await User.findOne({ clerkId });
       return user ? user.toObject() : undefined;
     } catch (error) {
@@ -116,6 +141,9 @@ export class MongoDBStorage {
 
   async getDecks(options = {}) {
     try {
+      // Ensure we're connected to MongoDB before querying
+      await this.ensureConnected();
+      
       let query = Deck.find();
       
       // Apply filters
@@ -160,7 +188,7 @@ export class MongoDBStorage {
       }
       
       const decks = await query.exec();
-      return decks.map(deck => deck.toObject());
+      return decks.length ? decks.map(deck => deck.toObject()) : [];
     } catch (error) {
       console.error('Error getting decks:', error);
       return [];
@@ -169,11 +197,15 @@ export class MongoDBStorage {
 
   async getFeaturedDecks(limit = 3) {
     try {
+      // Ensure we're connected to MongoDB before querying
+      await this.ensureConnected();
+      
       const decks = await Deck.find({ aiSummary: { $exists: true } })
         .sort('-createdAt')
         .limit(limit)
         .exec();
-      return decks.map(deck => deck.toObject());
+      
+      return decks.length ? decks.map(deck => deck.toObject()) : [];
     } catch (error) {
       console.error('Error getting featured decks:', error);
       return [];
