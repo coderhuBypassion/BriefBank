@@ -1,0 +1,183 @@
+Absolutely! Here's a **very detailed product and technical specification** for your AI agent, outlining everything about the **BriefBank** project, including tech stack, features, monetization (with Razorpay), and authentication (using **Clerk with Node.js + MongoDB**).
+
+---
+
+## **Project Name**: **BriefBank**
+
+### **Tagline**:  
+*“AI-powered pitch deck library—explore, learn, and get inspired in seconds.”*
+
+---
+
+## **Goal of the Project**  
+Build a **freemium SaaS product** where users can:
+- **Discover startup pitch decks** (scraped from public sources)
+- **Read AI-generated summaries, teardowns, and insights**
+- **Track startup patterns across industries, stages, and business models**
+- Monetize by offering **3 free summaries**, then **require payment via Razorpay**
+
+---
+
+## **Target Audience**
+- Founders preparing decks
+- Product Managers/Marketers studying startup GTM
+- Aspiring entrepreneurs & VCs
+- Job-seekers preparing for interviews
+
+---
+
+## **Key Features**
+
+### **1. Public Homepage (Unauthenticated Users)**
+- Hero section with catchy marketing copy:
+  > “Tired of reading dry, 20-slide pitch decks?”  
+  > “Let AI do the reading, you get the insights.”  
+  > “AI-powered startup research starts here.”
+
+- Showcase 2–3 handpicked or featured pitch decks (public summaries).
+- CTA: "Explore More With Free Account"
+
+---
+
+### **2. User Authentication (via Clerk)**
+- Use **Clerk** for handling sign-up/login/passwordless flows
+- Integrated with **Node.js backend** (via Clerk SDK and JWT verification)
+- Store user metadata in **MongoDB**, including:
+  ```js
+  {
+    clerkId: String,
+    email: String,
+    usedSummaries: Number,
+    isPro: Boolean,
+    createdAt: Date
+  }
+  ```
+
+---
+
+### **3. Pitch Deck Library**
+- Scraped decks stored in MongoDB.
+- Each deck includes:
+  ```js
+  {
+    title,
+    companyName,
+    industry,
+    stage,
+    type, // (Pitch Deck, Strategy Doc, PRD, etc.)
+    fileUrl,
+    sourceUrl,
+    aiSummary,
+    highlights,
+    tags,
+    createdAt
+  }
+  ```
+
+- Users can:
+  - Browse all decks
+  - Filter by stage, industry, type
+  - View embedded PDF using `PDF.js`
+  - Read AI summary + insights
+
+---
+
+### **4. AI Summarization (OpenAI)**
+- PDF files parsed on upload using `pdf-parse` or `pdf-lib`
+- Extracted text sent to OpenAI API with custom prompt:
+  ```text
+  You are a startup analyst. Analyze the following pitch deck. 
+  Return:
+  1. A 3-5 bullet summary
+  2. Strengths
+  3. Weaknesses
+  4. Recommended funding stage
+  ```
+- Output saved in MongoDB under `aiSummary` + `highlights` field
+
+---
+
+### **5. Freemium Usage Model**
+- Users can **summarize 3 decks for free**
+- After that, lock new summaries until payment
+
+**Logic:**
+- Backend checks `user.usedSummaries`
+- If `> 3` and not `isPro`, deny request
+- Prompt payment via Razorpay
+
+---
+
+### **6. Payment Integration (Razorpay)**
+- Use Razorpay Checkout
+- On payment success:
+  - Set `user.isPro = true` in MongoDB
+  - Send confirmation email (optional)
+- Optional: Webhook to verify payments on backend
+
+---
+
+### **7. Admin Panel (Phase 2)**
+- Upload pitch decks manually
+- Auto-generate summaries with 1 click
+- Mark decks as "featured" to show on homepage
+
+---
+
+## **Tech Stack**
+
+| Layer        | Tech                    |
+|--------------|--------------------------|
+| Frontend     | React + Tailwind CSS     |
+| Auth         | **Clerk**                |
+| Backend      | Node.js + Express        |
+| Database     | MongoDB (Mongoose ORM)   |
+| AI           | OpenAI API (GPT-4 Turbo) |
+| Payments     | Razorpay                 |
+| PDF Parsing  | pdf-parse / pdf-lib      |
+| Deployment   | Vercel (frontend), Render / Railway (backend) |
+
+---
+
+## **APIs & Routes**
+
+### **Auth (Protected via Clerk JWT Middleware)**
+- `/api/me` – get user info and limits
+- `/api/decks` – list decks (with filters)
+- `/api/deck/:id` – get full deck + summary
+- `/api/summarize/:deckId` – generate new summary (counts toward limit)
+
+### **Admin (Protected Route)**
+- `/api/admin/upload` – Upload new deck
+- `/api/admin/summary` – Trigger manual summary
+
+### **Payment**
+- `/api/payment/checkout` – Create Razorpay order
+- `/api/payment/webhook` – Verify + update `isPro`
+
+---
+
+## **Phases Overview**
+
+### **Phase 1 (MVP)**
+- Clerk Auth + MongoDB User tracking
+- Pitch Deck List + Detail View
+- Summary Limit (3 per free user)
+- Razorpay checkout for upgrade
+- Public homepage with 2-3 samples + CTAs
+
+### **Phase 2+**
+- User dashboard
+- Deck comparison
+- Community submissions
+- Newsletter & growth loops
+
+---
+
+## **Potential AI Agent Tasks**
+- Automate scraping from PitchDeckHunt.com & similar sources
+- Parse + extract text from PDFs
+- Generate OpenAI summaries + store in DB
+- Monitor and sync Clerk users with MongoDB
+- Detect when user hits summary limit, prompt Razorpay
+
